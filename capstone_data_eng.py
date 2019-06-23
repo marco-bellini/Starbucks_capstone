@@ -15,42 +15,43 @@ import pylab as plt
 from scipy.sparse import coo_matrix
 from sklearn.model_selection import train_test_split
 
+from auxiliary import *
 
 def list_channels_to_df(portfolio, channel_types=['web', 'email', 'mobile', 'social'], debug=False):
-  """
-  extracts information from the dictionary located in the channels column of the portfolio database to separate columns
+    """
+    extracts information from the dictionary located in the channels column of the portfolio database to separate columns
 
-  :param portfolio:
-  :param channel_types:
-  :param debug:
-  :return:
-  """
-  #
+    :param portfolio:
+    :param channel_types:
+    :param debug:
+    :return:
+    """
+    #
 
-  # initialize
-  for channel in channel_types:
-      portfolio[channel] = False
+    # initialize
+    for channel in channel_types:
+        portfolio[channel] = False
 
-  # assign values
-  for ind in portfolio.index:
-      for channel in channel_types:
-          if debug:
-              print(portfolio.loc[ind, 'channels'])
-          if channel in portfolio.loc[ind, 'channels']:
-              portfolio.loc[ind, channel] = True
-              if debug:
-                  print(channel, portfolio[channel])
-  return (portfolio)
+    # assign values
+    for ind in portfolio.index:
+        for channel in channel_types:
+            if debug:
+                print(portfolio.loc[ind, 'channels'])
+            if channel in portfolio.loc[ind, 'channels']:
+                portfolio.loc[ind, channel] = True
+                if debug:
+                    print(channel, portfolio[channel])
+    return (portfolio)
 
 
 def load_portfolio(debug=False, location='colab'):
-  """
-  loads and processes the portfolio database
+    """
+    loads and processes the portfolio database
 
-  :param debug: print debug information
-  :param location: portfolio.json location (Google Colab or local)
-  :return:
-  """
+    :param debug: print debug information
+    :param location: portfolio.json location (Google Colab or local)
+    :return:
+    """
 
     if location == 'colab':
         portfolio = pd.read_json(r'/content/gdrive/My Drive/UD/Sbux/data/portfolio.json', orient='records', lines=True)
@@ -73,13 +74,13 @@ def load_portfolio(debug=False, location='colab'):
 
 
 def load_transcript(debug=False, location='colab'):
-  """
-  loads and processes the transcript database
+    """
+    loads and processes the transcript database
 
-  :param debug: print debug information
-  :param location: portfolio.json location (Google Colab or local)
-  :return:
-  """
+    :param debug: print debug information
+    :param location: portfolio.json location (Google Colab or local)
+    :return:
+    """
 
     if location == 'colab':
         transcript = pd.read_json(r'/content/gdrive/My Drive/UD/Sbux/data/transcript.json', orient='records',
@@ -115,116 +116,117 @@ def load_transcript(debug=False, location='colab'):
 
 
 def load_profile(debug=False, location='colab'):
-  """
-  loads and processes the customer profile db
+    """
+    loads and processes the customer profile db
 
-  :param debug: print debug information
-  :param location: portfolio.json location (Google Colab or local)
-  :return:
-  """
+    :param debug: print debug information
+    :param location: portfolio.json location (Google Colab or local)
+    :return:
+    """
 
-  if location == 'colab':
-      profile = pd.read_json(r'/content/gdrive/My Drive/UD/Sbux/data/profile.json', orient='records', lines=True)
-  else:
-      profile = pd.read_json(r'profile.json', orient='records', lines=True)
+    if location == 'colab':
+        profile = pd.read_json(r'/content/gdrive/My Drive/UD/Sbux/data/profile.json', orient='records', lines=True)
+    else:
+        profile = pd.read_json(r'profile.json', orient='records', lines=True)
 
-  profile['became_member_on'] = pd.to_datetime(profile['became_member_on'].astype(str), format='%Y%m%d').astype(
-      "datetime64")
-  profile['joined_year'] = profile['became_member_on'].dt.year
-  profile['joined_month'] = profile['became_member_on'].dt.month
-  profile['joined_week'] = profile['became_member_on'].dt.week
+    profile['became_member_on'] = pd.to_datetime(profile['became_member_on'].astype(str), format='%Y%m%d').astype(
+        "datetime64")
+    profile['joined_year'] = profile['became_member_on'].dt.year
+    profile['joined_month'] = profile['became_member_on'].dt.month
+    profile['joined_week'] = profile['became_member_on'].dt.week
 
-  profile['gender_num'] = profile.gender.astype("category", categories=['F', 'M', 'O']).cat.codes
+    profile['gender_num'] = profile.gender.astype("category", categories=['F', 'M', 'O']).cat.codes
 
-  time_start = profile.became_member_on.min()
-  time_end = profile.became_member_on.max()
-  time_delta = time_end - time_start
+    time_start = profile.became_member_on.min()
+    time_end = profile.became_member_on.max()
+    time_delta = time_end - time_start
 
-  if debug:
-      print()
-      print('time span in profile DB:', time_start, time_end)
-      print('time_delta in profile DB:', time_delta.days, ' days ~ %d years' % np.round(time_delta.days / 365))
+    if debug:
+        print()
+        print('time span in profile DB:', time_start, time_end)
+        print('time_delta in profile DB:', time_delta.days, ' days ~ %d years' % np.round(time_delta.days / 365))
 
-  profile['user_time'] = (time_end - profile['became_member_on']).dt.days
-  profile = profile.rename(columns={'id': 'person'})
+    profile['user_time'] = (time_end - profile['became_member_on']).dt.days
+    profile = profile.rename(columns={'id': 'person'})
 
-  return (profile)
+    return (profile)
 
 
 def create_person_offer_table(transcript_offers, transcript_transactions, portfolio, add_missing=False, debug=False):
-  """
-  combines the transcript_offers, transcript_transactions, portfolio DBs into a single combined one that can be
-  indexed by (person, offer, time)
+    """
+    combines the transcript_offers, transcript_transactions, portfolio DBs into a single combined one that can be
+    indexed by (person, offer, time)
 
-  :param transcript_offers:
-  :param transcript_transactions:
-  :param portfolio:
-  :param add_missing: adds back the persons (6) that did not receive an offer in the timeframe of transcript_offers
-  :param debug:
-  :return: s
-  """
-  # generates a main pivot table with customer and offer information (received, viewed, completed)
+    :param transcript_offers:
+    :param transcript_transactions:
+    :param portfolio:
+    :param add_missing: adds back the persons (6) that did not receive an offer in the timeframe of transcript_offers
+    :param debug:
+    :return: s
+    """
+    # generates a main pivot table with customer and offer information (received, viewed, completed)
 
-  # time of offer received / viewed / completed / reward
-  combined_pot = extract_offer_times(transcript_offers, portfolio, debug=True);
+    # time of offer received / viewed / completed / reward
+    combined_pot = extract_offer_times(transcript_offers, portfolio, debug=True);
 
-  # adding the persons that don't receive any offer
-  missing_persons = set(transcript_transactions.person) - set(combined_pot.person)
-  print('persons with no offers received in timeframe: ', len(missing_persons))
+    # adding the persons that don't receive any offer
+    missing_persons = set(transcript_transactions.person) - set(combined_pot.person)
+    print('persons with no offers received in timeframe: ', len(missing_persons))
 
-  if add_missing:
-      # adding back the persons that did not receive an offer in the timeframe of transcript_offers
+    if add_missing:
+        # adding back the persons that did not receive an offer in the timeframe of transcript_offers
 
-      tmp1 = np.array(list(missing_persons))
-      tmp = np.vstack((tmp1, np.empty(tmp1.shape) * np.nan)).T
+        tmp1 = np.array(list(missing_persons))
+        tmp = np.vstack((tmp1, np.empty(tmp1.shape) * np.nan)).T
 
-      piv_missing = pd.DataFrame(tmp, columns=['person', 'offer'])
-      # display(piv_missing)
+        piv_missing = pd.DataFrame(tmp, columns=['person', 'offer'])
+        # display(piv_missing)
 
-      combined = pd.concat((combined_pot, piv_missing), sort=False)
-  else:
-      combined = combined_pot
+        combined = pd.concat((combined_pot, piv_missing), sort=False)
+    else:
+        combined = combined_pot
 
-  return combined
+    return combined
 
 
 def add_offers_df(combined, portfolio, debug=False):
-  """
-  adds the offer details to the main pivot table
+    """
+    adds the offer details to the main pivot table
 
-  :param combined:
-  :param portfolio: portfolio of offers
-  :param debug:
-  :return:
-  """
+    :param combined:
+    :param portfolio: portfolio of offers
+    :param debug:
+    :return:
+    """
 
-  #
+    #
 
-  # merge the offers on (person, offer)
-  if debug:
-      print('combined.shape:', combined.shape)
-  combined = combined.merge(portfolio[['difficulty', 'duration', 'offer', 'offer_type', 'web',
-                             'email', 'mobile', 'social', 'offer_reward', 'duration_hours']], on='offer', how='left')
-  combined.rename(columns={'offer completed': 'offer_completed', 'offer received': 'offer_received',
-                      'offer viewed': 'offer_viewed'}, inplace=True)
+    # merge the offers on (person, offer)
+    if debug:
+        print('combined.shape:', combined.shape)
+    combined = combined.merge(portfolio[['difficulty', 'duration', 'offer', 'offer_type', 'web',
+                                         'email', 'mobile', 'social', 'offer_reward', 'duration_hours']], on='offer',
+                              how='left')
+    combined.rename(columns={'offer completed': 'offer_completed', 'offer received': 'offer_received',
+                             'offer viewed': 'offer_viewed'}, inplace=True)
 
-  combined['offer_end'] = combined['offer_received'] + combined['duration_hours']
-  combined['duration_viewed'] = combined['offer_end'] - combined['offer_viewed']
-  combined['duration_viewed'] = combined['duration_viewed'].fillna(0)
+    combined['offer_end'] = combined['offer_received'] + combined['duration_hours']
+    combined['duration_viewed'] = combined['offer_end'] - combined['offer_viewed']
+    combined['duration_viewed'] = combined['duration_viewed'].fillna(0)
 
-  combined['duration_effective'] = combined[['duration_viewed', 'duration_hours']].min(axis=1, skipna=False)
+    combined['duration_effective'] = combined[['duration_viewed', 'duration_hours']].min(axis=1, skipna=False)
 
-  combined['viewed'] = np.invert(combined['offer_viewed'].isnull())
-  combined['rewarded'] = np.invert(combined['reward'].isnull())
-  combined['received'] = np.invert(combined['offer_received'].isnull())
+    combined['viewed'] = np.invert(combined['offer_viewed'].isnull())
+    combined['rewarded'] = np.invert(combined['reward'].isnull())
+    combined['received'] = np.invert(combined['offer_received'].isnull())
 
-  combined['comp_not_viewed'] = ((-combined['viewed']) & combined['rewarded'])
-  combined['completed'] = combined['rewarded'] & (-combined['comp_not_viewed'])
+    combined['comp_not_viewed'] = ((-combined['viewed']) & combined['rewarded'])
+    combined['completed'] = combined['rewarded'] & (-combined['comp_not_viewed'])
 
-  if debug:
-      print('combined.shape:', combined.shape)
+    if debug:
+        print('combined.shape:', combined.shape)
 
-  return (combined)
+    return (combined)
 
 
 def extract_offer_times(transcript_offers, portfolio, debug=True, ov_same_keep_earliest_viewed=True):
@@ -310,41 +312,6 @@ def extract_offer_times(transcript_offers, portfolio, debug=True, ov_same_keep_e
     #     print(piv.shape)
     return (combined)
 
-
-def split_offers_before(offers, time_split):
-    """
-    split_offers_before
-
-    :param offers:
-    :param time_split:
-    :return:
-    """
-
-    s_offers = offers.loc[(offers.offer_received < time_split)]
-    return (s_offers)
-
-
-def split_offers_after(offers, time_split):
-    """
-    split_offers_after
-    :param offers:
-    :param time_split:
-    :return:
-    """
-    s_offers = offers.loc[(offers.offer_end > time_split)]
-    return (s_offers)
-
-
-def find_p_o(df, p, o):
-    """
-    find_p_o
-
-    :param df:
-    :param p:
-    :param o:
-    :return:
-    """
-    return (df.loc[((df.person == p) & (df.offer == o))])
 
 
 def extract_transactions(combined, transcript, add_transactions=False, skip_overlap=True, debug=False):
@@ -469,7 +436,6 @@ def assign_overlapping_purchases(transactions_during_offer, assign_to='first'):
     :return:
     """
 
-
     # resolve case of overlapping offers by
     conn = sqlite3.connect(':memory:')
 
@@ -534,15 +500,10 @@ def add_stats_by_person(combined, transactions_outside_offer, transactions_durin
     total_purchase_outside_num = transactions_outside_offer.groupby(by=['person'])['payments'].agg('count').to_frame()
     total_purchase_outside_num.rename(columns={'payments': 'Npay_out'}, inplace=True)
 
-    ## TOTAL COUNT
-    #   t_offers=transactions_during_offer.groupby(by=['person'])['payments'].agg('sum').to_frame()
-    #   t_offers.rename(columns={'payments':'Tpay_offers_tot'},inplace=True)
-    #   t_offers_num=transactions_during_offer.groupby(by=['person'])['payments'].agg('count').to_frame()
-    #   t_offers_num.rename(columns={'payments':'Npay_offers_tot'},inplace=True)
-
     t_offers = transactions_during_offer.groupby(by=['person'])['payments'].agg(['sum', 'count', 'max', 'min'])
     t_offers.rename(columns={'sum': 'Tpay_offers_tot', 'count': 'Npay_offers_tot', 'max': 'Maxpay_offers_tot',
                              'min': 'Minpay_offers_tot'}, inplace=True)
+    t_offers = t_offers.fillna(0)
 
     t_rewards = combined.groupby(by=['person'])['reward'].agg(['sum', 'count'])
     t_rewards.rename(columns={'sum': 'Trewards_tot', 'count': 'Nrewards_tot'}, inplace=True)
@@ -557,27 +518,6 @@ def add_stats_by_person(combined, transactions_outside_offer, transactions_durin
     offer_timesN = combined.groupby(by=['person', 'offer'])[['offer_viewed', 'offer_end']].agg(np.mean)
     offer_timesN = offer_timesN[pd.notnull(offer_timesN['offer_viewed'])]
 
-    #   calc_net_offer_time_old=False
-    #   if calc_net_offer_time_old:
-    #     # total offers time (net, ie counting only once overlapping offer intervals)
-    #     persons= offer_timesN.index.unique(level=0)
-    #     tot_net_offers_time=pd.DataFrame(index=persons,columns=['tot_net_offers_time'])
-    #     tot_net_offers_time['tot_net_offers_time']=0
-
-    #     nn=int(persons.shape[0]/10)
-    #     c=0
-    #     print()
-    #     print('calculating total net offer time:')
-    #     print('##########')
-    #     for person in persons:
-    #   #     ut=union_time_intervals(offer_timesN.loc[person,:]['offer_viewed'].values,offer_timesN.loc[person,:]['offer_end'].values)
-    #       ut=union_time_intervals(piv.loc[piv.person==person,'offer_viewed'].values,piv.loc[piv.person==person,'offer_end'].values)
-    #       tot_net_offers_time.loc[person,'tot_net_offers_time']=ut
-    #       c+=1
-    #       if np.mod(c,nn)==0:
-    #         print('#',end='')
-    #     print()
-
     if calc_net_offer_time:
         tot_net_offers_time = overlapping_offer_intevals(combined, final_time=744, return_person_occupacy=False)
 
@@ -590,59 +530,80 @@ def add_stats_by_person(combined, transactions_outside_offer, transactions_durin
     print(combined.shape)
     #   print('transactions_during_offer',transactions_during_offer.shape)
     # add overlaps
-    piv2 = combined.merge(total_purchase_outside, on=['person'], how='left')
+    combined_with_person_stats = combined.merge(total_purchase_outside, on=['person'], how='left')
 
-    piv2 = piv2.merge(total_purchase_outside_num, on=['person'], how='left')
-    piv2 = piv2.merge(p_offers_completed[['p_c_r_ratio', 'p_cnv_r_ratio']], on=['person'], how='left')
+    combined_with_person_stats = combined_with_person_stats.merge(total_purchase_outside_num, on=['person'], how='left')
+    combined_with_person_stats = combined_with_person_stats.merge(p_offers_completed[['p_c_r_ratio', 'p_cnv_r_ratio']],
+                                                                  on=['person'], how='left')
 
     overlaps = transactions_during_offer[['person', 'offer', 'offer_viewed', 'overlaps']].groupby(
         by=['person', 'offer', 'offer_viewed']).agg('sum')
-    piv2 = piv2.merge(overlaps, on=['person', 'offer', 'offer_viewed'], how='left')
+    combined_with_person_stats = combined_with_person_stats.merge(overlaps, on=['person', 'offer', 'offer_viewed'],
+                                                                  how='left')
     #   piv2=piv2.merge( transactions_during_offer[['person', 'offer',  'offer_viewed', 'overlaps']].drop_duplicates() ,on=['person','offer','offer_viewed'],how='left')
 
-    print(piv2.shape)
+    print(combined_with_person_stats.shape)
 
-    piv2 = piv2.merge(t_offers, on=['person'], how='left')
-    piv2 = piv2.merge(t_rewards, on=['person'], how='left')
+    combined_with_person_stats = combined_with_person_stats.merge(t_offers, on=['person'], how='left')
+    combined_with_person_stats = combined_with_person_stats.merge(t_rewards, on=['person'], how='left')
     #   piv2=piv2.merge(t_offers_num,on=['person'],how='left')
-    print(piv2.shape)
+    print(combined_with_person_stats.shape)
 
-    piv2 = piv2.merge(offer_times, on='person', how='left')
-    print(piv2.shape)
+    combined_with_person_stats = combined_with_person_stats.merge(offer_times, on='person', how='left')
+    print(combined_with_person_stats.shape)
 
     # piv2[['tot_net_offers_time'],'tot_net_offers_time','reward','Tpay_offer','Tpay_out','Npay_out','Npay_offer'
     if calc_net_offer_time:
-        piv2 = piv2.merge(tot_net_offers_time.reset_index(), on=['person'], how='left')
-        piv2['tot_net_offers_time'] = piv2['tot_net_offers_time'].fillna(0)
-        piv2['tot_not_offers_time'] = 744. - piv2['tot_net_offers_time']
+        combined_with_person_stats = combined_with_person_stats.merge(tot_net_offers_time.reset_index(), on=['person'],
+                                                                      how='left')
+        combined_with_person_stats['tot_net_offers_time'] = combined_with_person_stats['tot_net_offers_time'].fillna(0)
+        combined_with_person_stats['tot_not_offers_time'] = 744. - combined_with_person_stats['tot_net_offers_time']
 
-        piv2['Avg_pay_offers'] = piv2['Tpay_offers_tot'] / piv2['tot_net_offers_time']
-        piv2['Net_pay_offers'] = piv2['Tpay_offers_tot'] - piv2['Trewards_tot']
-        piv2['Avg_net_pay_offers'] = (piv2['Tpay_offers_tot'] - piv2['Trewards_tot']) / piv2['tot_net_offers_time']
+        combined_with_person_stats['Avg_pay_offers'] = combined_with_person_stats['Tpay_offers_tot'] / \
+                                                       combined_with_person_stats['tot_net_offers_time']
+        combined_with_person_stats['Net_pay_offers'] = combined_with_person_stats['Tpay_offers_tot'] - \
+                                                       combined_with_person_stats['Trewards_tot']
+        combined_with_person_stats['Avg_net_pay_offers'] = (combined_with_person_stats['Tpay_offers_tot'] -
+                                                            combined_with_person_stats['Trewards_tot']) / \
+                                                           combined_with_person_stats['tot_net_offers_time']
 
-        piv2['Avg_pay_outside'] = piv2['Tpay_out'] / piv2['tot_not_offers_time']
-        piv2['Avg_pay_offers'] = piv2['Avg_pay_offers'].fillna(0)
-        piv2['Avg_pay_outside'] = piv2['Avg_pay_outside'].fillna(0)
+        combined_with_person_stats['Avg_pay_outside'] = combined_with_person_stats['Tpay_out'] / \
+                                                        combined_with_person_stats['tot_not_offers_time']
+        combined_with_person_stats['Avg_pay_offers'] = combined_with_person_stats['Avg_pay_offers'].fillna(0)
+        combined_with_person_stats['Avg_pay_outside'] = combined_with_person_stats['Avg_pay_outside'].fillna(0)
 
-        piv2['Avg_D_O'] = piv2['Avg_pay_offer'] - piv2['Avg_pay_outside']
-        piv2['Avg_D_OS'] = piv2['Avg_pay_offers'] - piv2['Avg_pay_outside']
+        combined_with_person_stats['Avg_D_O'] = combined_with_person_stats['Avg_pay_offer'] - \
+                                                combined_with_person_stats['Avg_pay_outside']
+        combined_with_person_stats['Avg_D_OS'] = combined_with_person_stats['Avg_pay_offers'] - \
+                                                 combined_with_person_stats['Avg_pay_outside']
 
-    piv2['reward'] = piv2['reward'].fillna(0)
-    piv2['Tpay_offers_tot'] = piv2['Tpay_offers_tot'].fillna(0)
-    piv2['Tpay_out'] = piv2['Tpay_out'].fillna(0)
-    piv2['Npay_out'] = piv2['Npay_out'].fillna(0)
-    piv2['Npay_offers_tot'] = piv2['Npay_offers_tot'].fillna(0)
-    piv2['Avg_net_pay_offers'] = piv2['Avg_net_pay_offers'].fillna(0)
+    combined_with_person_stats['reward'] = combined_with_person_stats['reward'].fillna(0)
+    combined_with_person_stats['Tpay_offers_tot'] = combined_with_person_stats['Tpay_offers_tot'].fillna(0)
+    combined_with_person_stats['Tpay_out'] = combined_with_person_stats['Tpay_out'].fillna(0)
+    combined_with_person_stats['Npay_out'] = combined_with_person_stats['Npay_out'].fillna(0)
+    combined_with_person_stats['Npay_offers_tot'] = combined_with_person_stats['Npay_offers_tot'].fillna(0)
+    combined_with_person_stats['Avg_net_pay_offers'] = combined_with_person_stats['Avg_net_pay_offers'].fillna(0)
 
-    print(piv2.shape)
+    print(combined_with_person_stats.shape)
 
-    return (piv2)
+    return (combined_with_person_stats)
 
 
-def add_purchases(piv, profile, transactions_outside_offer, tdo, assign_to='first', calc_net_offer_time=False,
-                  add_person_stats=True):
-    # adds the purchase information (during and outside offers) to the main pivot table.
-    # the information of average spending during and outside of offers is calculated
+def add_purchases(combined, profile, transactions_outside_offer, tdo, assign_to='first', calc_net_offer_time=False,
+                  add_person_stats=True, debug=False):
+    """
+    adds the purchase information (during and outside offers) to the main pivot table.
+    the information of average spending during and outside of offers is calculated
+
+    :param combined:
+    :param profile:
+    :param transactions_outside_offer:
+    :param tdo:
+    :param assign_to:
+    :param calc_net_offer_time:
+    :param add_person_stats:
+    :return:
+    """
 
     # deal with multiple offers
     transactions_during_offer = assign_overlapping_purchases(tdo, assign_to=assign_to)
@@ -652,75 +613,94 @@ def add_purchases(piv, profile, transactions_outside_offer, tdo, assign_to='firs
     if assign_to == 'ignore':
         # a payment is received during multiple offers are received, the amount is split equally between the offers
         transactions_during_offer['payments'] = transactions_during_offer['payments_original'] / (
-                    transactions_during_offer['overlaps'] + 1.)
+                transactions_during_offer['overlaps'] + 1.)
 
-    ## SPECIFIC TO A CERTAIN OFFER
-    # transactions_during_offer (grouped by person, offer, and date of start)
-    #   t_spec_offer=transactions_during_offer.groupby(by=['person','offer','offer_viewed'])['payments'].agg('sum').to_frame()
-    #   t_spec_offer.rename(columns={'payments':'Tpay_offer'},inplace=True)
     t_spec_offer = transactions_during_offer.groupby(by=['person', 'offer', 'offer_viewed'])['payments'].agg(
         ['sum', 'count', 'max', 'min'])
     t_spec_offer.rename(
         columns={'sum': 'Tpay_offer', 'count': 'Npay_offer', 'max': 'Maxpay_offer', 'min': 'Minpay_offer', },
         inplace=True)
 
-    #   t_spec_offer_num=transactions_during_offer.groupby(by=['person','offer','offer_viewed'])['payments'].agg('count').to_frame()
-    #   t_spec_offer_num.rename(columns={'payments':'Npay_offer'},inplace=True)
-
     # adding the total purchases outside of offers and during offer (specific and total)
-    print('add_purchases:')
-    print(piv.shape)
+    if debug:
+        print('add_purchases:')
+        print(combined.shape)
 
-    piv2 = piv.merge(t_spec_offer, on=['person', 'offer', 'offer_viewed'], how='left')
-    #   piv2=piv2.merge(t_spec_offer_num,on=['person','offer','offer_viewed'],how='left')
-    print(piv2.shape)
+    combined_with_purchases = combined.merge(t_spec_offer, on=['person', 'offer', 'offer_viewed'], how='left')
+    print(combined_with_purchases.shape)
 
-    piv2['Tpay_offer'] = piv2['Tpay_offer'].fillna(0)
-    piv2['Npay_offer'] = piv2['Npay_offer'].fillna(0)
+    combined_with_purchases['Tpay_offer'] = combined_with_purchases['Tpay_offer'].fillna(0)
+    combined_with_purchases['Npay_offer'] = combined_with_purchases['Npay_offer'].fillna(0)
 
-    piv2['Netpay_offer'] = piv2['Tpay_offer'] - piv2['reward']
+    combined_with_purchases['Netpay_offer'] = combined_with_purchases['Tpay_offer'] - combined_with_purchases['reward']
 
     # if the offer is not seen, it should not be considered. It also prevents the division by zero
     # prevents division by zero if there's a payment
-    piv2['Avg_pay_offer'] = piv2['Tpay_offer'] / np.maximum(piv2['duration_effective'],
-                                                            1.0 + 0.0 * piv2['duration_effective'])
-    piv2.loc[(piv2['duration_effective'] == 0), 'Avg_pay_offer'] = 0.0
-    piv2['Avg_pay_offer'] = piv2['Avg_pay_offer'].fillna(0)
+    combined_with_purchases['Avg_pay_offer'] = combined_with_purchases['Tpay_offer'] / np.maximum(
+        combined_with_purchases['duration_effective'],
+        1.0 + 0.0 * combined_with_purchases['duration_effective'])
+    combined_with_purchases.loc[(combined_with_purchases['duration_effective'] == 0), 'Avg_pay_offer'] = 0.0
+    combined_with_purchases['Avg_pay_offer'] = combined_with_purchases['Avg_pay_offer'].fillna(0)
 
-    piv2 = piv2.merge(profile, on='person', how='left')
+    combined_with_purchases = combined_with_purchases.merge(profile, on='person', how='left')
 
     if add_person_stats:
-        piv2 = add_stats_by_person(piv2, transactions_outside_offer, transactions_during_offer,
-                                   calc_net_offer_time=calc_net_offer_time)
+        combined_with_purchases = add_stats_by_person(combined_with_purchases, transactions_outside_offer,
+                                                      transactions_during_offer,
+                                                      calc_net_offer_time=calc_net_offer_time)
 
-    return (piv2)
+    return (combined_with_purchases)
 
-
-# transactions_during_offer.groupby(by=['person','offer','offer_viewed'])['payments'].agg(['sum','count','max','min'])
 
 def create_pivot_table(portfolio, profile, transcript_offers, transcript_transactions, add_transactions=False,
                        skip_overlap=False,
                        skip_add_purchases=False, calc_net_offer_time=True, assign_to='first'):
-    # creates the pivot table with all the derived information
+    """
+    creates the pivot table with all the derived information
 
-    piv = create_person_offer_table(transcript_offers, transcript_transactions, portfolio)
-    piv = add_offers_df(piv, portfolio);
-    piv, trans, transactions_during_offer, transactions_outside_offer = extract_transactions(piv,
-                                                                                             transcript_transactions,
-                                                                                             add_transactions=add_transactions,
-                                                                                             skip_overlap=skip_overlap);
+    :param portfolio:
+    :param profile:
+    :param transcript_offers:
+    :param transcript_transactions:
+    :param add_transactions:
+    :param skip_overlap:
+    :param skip_add_purchases:
+    :param calc_net_offer_time:
+    :param assign_to:
+    :return:
+    """
+
+    combined = create_person_offer_table(transcript_offers, transcript_transactions, portfolio)
+    combined = add_offers_df(combined, portfolio);
+    combined, trans, transactions_during_offer, transactions_outside_offer = extract_transactions(combined,
+                                                                                                  transcript_transactions,
+                                                                                                  add_transactions=add_transactions,
+                                                                                                  skip_overlap=skip_overlap);
     if not skip_add_purchases:
-        piv = add_purchases(piv, profile, transactions_outside_offer, transactions_during_offer,
-                            calc_net_offer_time=calc_net_offer_time, assign_to=assign_to)
+        combined = add_purchases(combined, profile, transactions_outside_offer, transactions_during_offer,
+                                 calc_net_offer_time=calc_net_offer_time, assign_to=assign_to)
 
-    return (piv, transactions_during_offer, transactions_outside_offer, trans)
+    return (combined, transactions_during_offer, transactions_outside_offer, trans)
 
 
 def load_data_cv(person_split=None, rename_offers=False, time_split_min=None, time_split_max=None,
                  add_transactions=False, skip_overlap=False,
-                 skip_add_purchases=False, calc_net_offer_time=False, assign_to='first'):
-    # creates the main table and transaction tables
-    # can also generate CV splits by persons (by fraction) or by time (before a time in hours)
+                 skip_add_purchases=False, calc_net_offer_time=False, assign_to='first',location='colab'):
+    """
+    creates the main table and transaction tables
+    can also generate CV splits by persons (by fraction) or by time (before a time in hours)
+
+    :param person_split:
+    :param rename_offers:
+    :param time_split_min:
+    :param time_split_max:
+    :param add_transactions:
+    :param skip_overlap:
+    :param skip_add_purchases:
+    :param calc_net_offer_time:
+    :param assign_to:
+    :return:
+    """
 
     # print(person_split)
 
@@ -739,9 +719,9 @@ def load_data_cv(person_split=None, rename_offers=False, time_split_min=None, ti
         print('CV split must be either by person or by time')
         sys.exit(1)
 
-    portfolio = load_portfolio()
-    offers_all, transactions_all = load_transcript()
-    profile_all = load_profile()
+    portfolio = load_portfolio(location=location)
+    offers_all, transactions_all = load_transcript(location=location)
+    profile_all = load_profile(location=location)
 
     if rename_offers:
         portfolio['offer'] = portfolio['offer'].replace(rename_offers_dict)
@@ -749,16 +729,18 @@ def load_data_cv(person_split=None, rename_offers=False, time_split_min=None, ti
         transactions_all['offer'] = transactions_all['offer'].replace(rename_offers_dict)
 
     if ((person_split is None) & (time_split_min is None) & (time_split_max is None)):
-        piv, transactions_during_offer, transactions_outside_offer, trans = create_pivot_table(portfolio, profile_all,
-                                                                                               offers_all,
-                                                                                               transactions_all,
-                                                                                               add_transactions=add_transactions,
-                                                                                               skip_overlap=skip_overlap,
-                                                                                               skip_add_purchases=skip_add_purchases,
-                                                                                               calc_net_offer_time=calc_net_offer_time,
-                                                                                               assign_to=assign_to)
+        combined, transactions_during_offer, transactions_outside_offer, trans = create_pivot_table(portfolio,
+                                                                                                    profile_all,
+                                                                                                    offers_all,
+                                                                                                    transactions_all,
+                                                                                                    add_transactions=add_transactions,
+                                                                                                    skip_overlap=skip_overlap,
+                                                                                                    skip_add_purchases=skip_add_purchases,
+                                                                                                    calc_net_offer_time=calc_net_offer_time,
+                                                                                                    assign_to=assign_to)
 
-        return (piv, profile_all, portfolio, offers_all, trans, transactions_during_offer, transactions_outside_offer)
+        return (
+        combined, profile_all, portfolio, offers_all, trans, transactions_during_offer, transactions_outside_offer)
 
         # creating CV splitting by persons:
     print()
@@ -800,15 +782,15 @@ def load_data_cv(person_split=None, rename_offers=False, time_split_min=None, ti
         transactions = transactions_all.loc[transactions_all.person.isin(list(Lprofile))]
         transactions_test = transactions_all.loc[transactions_all.person.isin(list(Lprofile_test))]
 
-    piv, transactions_during_offer, transactions_outside_offer, trans = create_pivot_table(portfolio, profile_all,
-                                                                                           offers, transactions,
-                                                                                           add_transactions=add_transactions,
-                                                                                           skip_overlap=skip_overlap,
-                                                                                           skip_add_purchases=skip_add_purchases,
-                                                                                           calc_net_offer_time=calc_net_offer_time,
-                                                                                           assign_to=assign_to)
+    combined, transactions_during_offer, transactions_outside_offer, trans = create_pivot_table(portfolio, profile_all,
+                                                                                                offers, transactions,
+                                                                                                add_transactions=add_transactions,
+                                                                                                skip_overlap=skip_overlap,
+                                                                                                skip_add_purchases=skip_add_purchases,
+                                                                                                calc_net_offer_time=calc_net_offer_time,
+                                                                                                assign_to=assign_to)
     out = {}
-    out['train'] = piv
+    out['train'] = combined
     out['train_tdo'] = transactions_during_offer
     out['train_too'] = transactions_outside_offer
     out['train_offers'] = offers
@@ -819,12 +801,12 @@ def load_data_cv(person_split=None, rename_offers=False, time_split_min=None, ti
             #       return(out ,profile_all,portfolio,offers_all,transactions_all )
             #     else:
             # time split
-            piv_test, transactions_during_offer_test, transactions_outside_offer_test, trans_test = create_pivot_table(
+            combined_test, transactions_during_offer_test, transactions_outside_offer_test, trans_test = create_pivot_table(
                 portfolio, profile_all, offers_test, transactions_test,
                 add_transactions=add_transactions, skip_overlap=skip_overlap,
                 skip_add_purchases=skip_add_purchases,
                 calc_net_offer_time=calc_net_offer_time, assign_to=assign_to)
-            out['test'] = piv_test
+            out['test'] = combined_test
             out['test_tdo'] = transactions_during_offer_test
             out['test_too'] = transactions_outside_offer_test
             out['test_offers'] = offers_test
@@ -835,12 +817,12 @@ def load_data_cv(person_split=None, rename_offers=False, time_split_min=None, ti
     else:
         # person split
         print('test data')
-        piv_test, transactions_during_offer_test, transactions_outside_offer_test, trans_test = create_pivot_table(
+        combined_test, transactions_during_offer_test, transactions_outside_offer_test, trans_test = create_pivot_table(
             portfolio, profile_test, offers_test, transactions_test,
             add_transactions=add_transactions, skip_overlap=skip_overlap,
             skip_add_purchases=skip_add_purchases,
             calc_net_offer_time=calc_net_offer_time, assign_to=assign_to)
-        out['test'] = piv_test
+        out['test'] = combined_test
         out['test_tdo'] = transactions_during_offer_test
         out['test_too'] = transactions_outside_offer_test
         out['test_offers'] = offers_test
@@ -850,6 +832,15 @@ def load_data_cv(person_split=None, rename_offers=False, time_split_min=None, ti
 
 
 def overlapping_offer_intevals(pot_df, final_time=744, return_person_occupacy=True):
+    """
+
+    :param pot_df:
+    :param final_time:
+    :param return_person_occupacy:
+    :return:
+    """
+
+
     # derive the net offer time for a person, counting overlapping offers only once
 
     # work on subset pot (person, offer, time)
@@ -890,33 +881,23 @@ def overlapping_offer_intevals(pot_df, final_time=744, return_person_occupacy=Tr
         return (effective_duration)
 
 
-out, profile_all, portfolio, offers_all, transactions_all, transactions_during_offer, transactions_outside_offer = load_data_cv(
-    person_split=None, rename_offers=True, time_split_min=None, time_split_max=None,
-    add_transactions=False, skip_overlap=False, skip_add_purchases=False, calc_net_offer_time=True, assign_to='ignore')
+def plot_offers_of_customer_time(piv, trans, tdo, too, customer, yc=0, step=0.1, plot_transactions=True,
+                                 plot_offer_name=True, overlay_spacing=0.2):
+    """
+    plots the offers and the transactions for a customer versus time
 
-out.head()
-
-c = '01ff6c5d8d014dbd8c120e2b43a065ea'
-out.loc[out.person == c]
-
-offers_all[(offers_all.person == c) & (offers_all.offer == 'g')]
-
-print('Toffers', out.groupby(by=['person'])['Tpay_offers_tot'].mean().sum())
-print('Toffer sum', out['Tpay_offer'].sum())
-
-po_t = out.groupby(by=['person'])['Tpay_offers_tot'].mean()  # .to_frame()
-po_p = out.groupby(by=['person'])['Tpay_offer'].sum()
-# po_t.rename(inplace=True, columns={0:'by_offers'})
-# check=po_t.join(po_p,on='index')
-check = pd.concat((po_t, po_p), axis=1)
-check['difference'] = check['Tpay_offers_tot'] - check['Tpay_offer']
-
-check.loc[check.difference > 1e-6]
-
-
-def plot_offers_of_customer3(piv, trans, tdo, too, customer, yc=0, step=0.1, plot_transactions=True,
-                             plot_offer_name=True, overlay_spacing=0.2):
-    # plots the offers and the transactions for a customer
+    :param piv:
+    :param trans:
+    :param tdo:
+    :param too:
+    :param customer:
+    :param yc:
+    :param step:
+    :param plot_transactions:
+    :param plot_offer_name:
+    :param overlay_spacing:
+    :return:
+    """
 
     gg = piv.loc[(piv.person == customer), 'offer_received'].drop_duplicates()
     ind = gg.index.values
@@ -963,7 +944,7 @@ def plot_offers_of_customer3(piv, trans, tdo, too, customer, yc=0, step=0.1, plo
         for n in ind:
             y_offer = n_offer + 1
             tdoc = tdo.loc[(tdo.person == customer) & (tdo.offer == piv.loc[n, 'offer']) & (
-                        tdo.offer_viewed == piv.loc[n, 'offer_viewed'])]
+                    tdo.offer_viewed == piv.loc[n, 'offer_viewed'])]
             dy = (tdoc['overlaps']) * y_offer
             if (tdoc['overlaps'] > 0).any():
                 y_offer += overlay_spacing
@@ -981,88 +962,3 @@ def plot_offers_of_customer3(piv, trans, tdo, too, customer, yc=0, step=0.1, plo
     plt.ylabel('purchases');
 
     return (viewed_offers, v_off_times, overlapping_offers_time)
-
-
-de, po = overlapping_offer_intevals(out, final_time=744, return_person_occupacy=True)
-
-# po.head()
-
-customer = out.loc[3, 'person']
-
-plot_offers_of_customer3(out, transactions_all, transactions_during_offer, transactions_outside_offer, customer)
-plt.title('customer: ' + out.loc[3, 'person'])
-plt.axis([-5, 750, -1, 2])
-
-xx = po.loc[customer, :].index.values
-yy = po.loc[customer, :].values
-ii = np.nonzero(yy)[0]
-plt.plot(xx[ii], yy[ii], 'ko', alpha=0.03)
-
-plt.text(170, 1.2, 'total viewed offer time')
-plt.ylabel('offers')
-frame1 = plt.gca()
-frame1.axes.yaxis.set_ticklabels([]);
-
-out.head()
-
-out.to_pickle(r'/content/gdrive/My Drive/UD/Sbux/data/out.pkl')
-
-out.loc[((out.viewed) & (~out.rewarded))].head()
-
-rename_offers_dict = {'0b1e1539f2cc45b7b9fa7c272da2e1d7': 'a',
-                      '2298d6c36e964ae4a3e7e9706d1fb8c2': 'b',
-                      '2906b810c7d4411798c6938adc9daaa5': 'c',
-                      '3f207df678b143eea3cee63160fa8bed': 'd',
-                      '4d5c57ea9a6940dd891ad53e9dbe8da0': 'e',
-                      '5a8bc65990b245e5a138643cd4eb9837': 'f',
-                      '9b98b8c7a33c4b65b9aebfe6a799e6d9': 'g',
-                      'ae264e3637204a6fb9bb56bc8210ddfd': 'h',
-                      'f19421c1d4aa40978ebb69ca19b0e20d': 'i',
-                      'fafdcd668e3743c1bb461111dcafc2a4': 'j'}
-
-portfolio = load_portfolio()
-offers_all, transactions_all = load_transcript()
-profile_all = load_profile()
-
-portfolio['offer'] = portfolio['offer'].replace(rename_offers_dict)
-offers_all['offer'] = offers_all['offer'].replace(rename_offers_dict)
-transactions_all['offer'] = transactions_all['offer'].replace(rename_offers_dict)
-
-# piv,transactions_during_offer,transactions_outside_offer,trans =create_pivot_table(portfolio,profile_all,offers_all,transactions_all,
-#                                                                            add_transactions=add_transactions,skip_overlap=skip_overlap,
-#                                                                                   skip_add_purchases=skip_add_purchases,
-#                                                                                    calc_net_offer_time=calc_net_offer_time,assign_to=assign_to)
-
-piv = create_person_offer_table(offers_all, transactions_all, portfolio)
-piv = add_offers_df(piv, portfolio);
-# piv,trans,transactions_during_offer,transactions_outside_offer= extract_transactions(piv,transcript_transactions,
-#                                                                                    add_transactions=add_transactions,skip_overlap=skip_overlap);
-# piv=add_purchases(piv,profile,transactions_outside_offer,transactions_during_offer,calc_net_offer_time=calc_net_offer_time,assign_to=assign_to)
-
-piv.loc[((piv.viewed) & (~piv.rewarded))].head()
-
-piv.head()
-
-piv1 = extract_offer_times(offers_all, portfolio, debug=True);
-
-# piv1.head()
-
-# piv1.loc[( ~(piv1.offer_viewed.isnull() ) & (piv1.reward.isnull() ) )].head()
-
-# c='78afa995795e4d85b5d9ceeca43f5fef'	# no overlaps
-# c='fbc039723b044dfd8a1723a976d667d9'
-# c='e309916d14da4d85838e81462faee824'
-c = '0ebc3c4c39234ab6a2701fe2525705a9'
-
-offers_all.loc[offers_all.person == c]
-
-piv1.loc[piv1.person == c]
-
-out.loc[out.overlaps > 3].head()
-
-piv['distance'] = piv['offer_viewed'] - piv['offer_received']
-
-ordered = piv.loc[:, ['person', 'offer', 'offer_viewed', 'distance']].sort_values(by='distance', ascending=True)
-# ordered=ordered.drop(columns=['distance'])
-
-ordered.loc[ordered.distance > 0]
