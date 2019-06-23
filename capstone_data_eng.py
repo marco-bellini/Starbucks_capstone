@@ -522,9 +522,12 @@ def add_stats_by_person(combined, transactions_outside_offer, transactions_durin
         tot_net_offers_time = overlapping_offer_intevals(combined, final_time=744, return_person_occupacy=False)
 
     # completed offers
-    p_offers_completed = combined.groupby(by='person')['completed', 'comp_not_viewed', 'received'].agg('sum')
+    p_offers_completed = combined.groupby(by='person')['completed', 'comp_not_viewed', 'received','viewed'].agg('sum')
     p_offers_completed['p_c_r_ratio'] = p_offers_completed['completed'] / p_offers_completed['received']
+    p_offers_completed['p_c_v_ratio'] = p_offers_completed['completed'] / p_offers_completed['viewed']
+
     p_offers_completed['p_cnv_r_ratio'] = p_offers_completed['comp_not_viewed'] / p_offers_completed['received']
+    p_offers_completed=p_offers_completed.fillna(0)
 
     print('add_stats_by_person:')
     print(combined.shape)
@@ -533,7 +536,7 @@ def add_stats_by_person(combined, transactions_outside_offer, transactions_durin
     combined_with_person_stats = combined.merge(total_purchase_outside, on=['person'], how='left')
 
     combined_with_person_stats = combined_with_person_stats.merge(total_purchase_outside_num, on=['person'], how='left')
-    combined_with_person_stats = combined_with_person_stats.merge(p_offers_completed[['p_c_r_ratio', 'p_cnv_r_ratio']],
+    combined_with_person_stats = combined_with_person_stats.merge(p_offers_completed[['p_c_r_ratio', 'p_cnv_r_ratio','p_c_v_ratio']],
                                                                   on=['person'], how='left')
 
     overlaps = transactions_during_offer[['person', 'offer', 'offer_viewed', 'overlaps']].groupby(
@@ -576,6 +579,11 @@ def add_stats_by_person(combined, transactions_outside_offer, transactions_durin
                                                 combined_with_person_stats['Avg_pay_outside']
         combined_with_person_stats['Avg_D_OS'] = combined_with_person_stats['Avg_pay_offers'] - \
                                                  combined_with_person_stats['Avg_pay_outside']
+        combined_with_person_stats['Avg_D_nOS'] = combined_with_person_stats['Avg_net_pay_offers'] - \
+                                                 combined_with_person_stats['Avg_pay_outside']
+
+        combined_with_person_stats['Avg_D_nOS']=combined_with_person_stats['Avg_D_nOS'].fillna(0)
+
 
     combined_with_person_stats['reward'] = combined_with_person_stats['reward'].fillna(0)
     combined_with_person_stats['Tpay_offers_tot'] = combined_with_person_stats['Tpay_offers_tot'].fillna(0)
@@ -590,7 +598,7 @@ def add_stats_by_person(combined, transactions_outside_offer, transactions_durin
     combined_with_person_stats['Maxpay_offers_tot'] = combined_with_person_stats['Maxpay_offers_tot'].fillna(0)
     combined_with_person_stats['Minpay_offers_tot'] = combined_with_person_stats['Minpay_offers_tot'].fillna(0)
     combined_with_person_stats['Net_pay_offers'] = combined_with_person_stats['Net_pay_offers'].fillna(0)
-    combined_with_person_stats['overlaps'] = combined_with_person_stats['overlaps'].fillna(0)
+    combined_with_person_stats['overlaps'] = combined_with_person_stats['overlaps'].fillna(0)4
 
 
     print(combined_with_person_stats.shape)
