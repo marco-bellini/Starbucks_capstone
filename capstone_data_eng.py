@@ -338,7 +338,7 @@ def extract_transactions(combined, transcript, add_transactions=False, skip_over
     # extracts the transactions during an offer period, uses group by to avoid repeated rows in the SQL query
     conn = sqlite3.connect(':memory:')
 
-    combined.to_sql('combined', conn, index=False, if_exists='replace')
+    combined.to_sql('piv', conn, index=False, if_exists='replace')
 
     # (tr_id) index is the real index in the transcript DataFrame, idx is the reindexed index
     trans = trans.rename(columns={'index': 'tr_id'})
@@ -583,6 +583,15 @@ def add_stats_by_person(combined, transactions_outside_offer, transactions_durin
     combined_with_person_stats['Npay_out'] = combined_with_person_stats['Npay_out'].fillna(0)
     combined_with_person_stats['Npay_offers_tot'] = combined_with_person_stats['Npay_offers_tot'].fillna(0)
     combined_with_person_stats['Avg_net_pay_offers'] = combined_with_person_stats['Avg_net_pay_offers'].fillna(0)
+
+    combined_with_person_stats['Maxpay_offer'] = combined_with_person_stats['Maxpay_offer'].fillna(0)
+    combined_with_person_stats['Minpay_offer'] = combined_with_person_stats['Minpay_offer'].fillna(0)
+    combined_with_person_stats['Netpay_offer'] = combined_with_person_stats['Netpay_offer'].fillna(0)
+    combined_with_person_stats['Maxpay_offers_tot'] = combined_with_person_stats['Maxpay_offers_tot'].fillna(0)
+    combined_with_person_stats['Minpay_offers_tot'] = combined_with_person_stats['Minpay_offers_tot'].fillna(0)
+    combined_with_person_stats['Net_pay_offers'] = combined_with_person_stats['Net_pay_offers'].fillna(0)
+    combined_with_person_stats['overlaps'] = combined_with_person_stats['overlaps'].fillna(0)
+
 
     print(combined_with_person_stats.shape)
 
@@ -962,3 +971,10 @@ def plot_offers_of_customer_time(piv, trans, tdo, too, customer, yc=0, step=0.1,
     plt.ylabel('purchases');
 
     return (viewed_offers, v_off_times, overlapping_offers_time)
+
+
+if __name__ == "__main__":
+    out, profile_all, portfolio, offers_all, transactions_all, transactions_during_offer, transactions_outside_offer = load_data_cv(
+        person_split=None, rename_offers=True, time_split_min=None, time_split_max=None,
+        add_transactions=False, skip_overlap=False, skip_add_purchases=False, calc_net_offer_time=True,
+        assign_to='ignore', location='local')
