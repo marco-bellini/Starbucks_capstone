@@ -135,7 +135,8 @@ def load_profile(debug=False, location='colab'):
     profile['joined_month'] = profile['became_member_on'].dt.month
     profile['joined_week'] = profile['became_member_on'].dt.week
 
-    profile['gender_num'] = profile.gender.astype("category", categories=['F', 'M', 'O']).cat.codes
+#     profile['gender_num'] = profile.gender.astype("category", categories=['F', 'M', 'O']).cat.codes
+    profile['gender_num'] = profile.gender.astype(pd.Categorical, categories=['F', 'M', 'O']).cat.codes
 
     time_start = profile.became_member_on.min()
     time_end = profile.became_member_on.max()
@@ -598,7 +599,7 @@ def add_stats_by_person(combined, transactions_outside_offer, transactions_durin
     combined_with_person_stats['Maxpay_offers_tot'] = combined_with_person_stats['Maxpay_offers_tot'].fillna(0)
     combined_with_person_stats['Minpay_offers_tot'] = combined_with_person_stats['Minpay_offers_tot'].fillna(0)
     combined_with_person_stats['Net_pay_offers'] = combined_with_person_stats['Net_pay_offers'].fillna(0)
-    combined_with_person_stats['overlaps'] = combined_with_person_stats['overlaps'].fillna(0)4
+    combined_with_person_stats['overlaps'] = combined_with_person_stats['overlaps'].fillna(0)
 
 
     print(combined_with_person_stats.shape)
