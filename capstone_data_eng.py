@@ -134,10 +134,9 @@ def load_profile(debug=False, location='colab'):
     profile['joined_year'] = profile['became_member_on'].dt.year
     profile['joined_month'] = profile['became_member_on'].dt.month
     profile['joined_week'] = profile['became_member_on'].dt.week
-
-#     profile['gender_num'] = profile.gender.astype("category", categories=['F', 'M', 'O']).cat.codes
-    profile['gender_num'] = profile.gender.astype(pd.Categorical, categories=['F', 'M', 'O']).cat.codes
-
+    
+    profile['gender_num'] = profile.gender.astype("category", categories=['F', 'M', 'O']).cat.codes
+    
     time_start = profile.became_member_on.min()
     time_end = profile.became_member_on.max()
     time_delta = time_end - time_start
