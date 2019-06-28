@@ -3,8 +3,6 @@ import numpy as np
 import pandas as pd
 import pylab as plt 
 
-from google.colab import drive
-import sqlite3
 import seaborn as sns
 from sklearn.model_selection import train_test_split
 
@@ -52,11 +50,15 @@ def bin_transactions(df,xcol,ycol,xedges,yedges,count_bins,cmap='gnuplot',ylog=T
   
   plt.ylabel(ylabel_left)
   
-  ax1=ax.twinx()
-  ax1.set_yticks(yedgesH)
+#   ax1=ax.twinx()
+#   ax1.set_yticks(yedgesH)
+#   yticks=['%g' % x for x in yedges]
+#   ax1.set_yticklabels(yticks)
+
+  ax.set_yticks(yedgesH)
   yticks=['%g' % x for x in yedges]
-  ax1.set_yticklabels(yticks)
-  
+  ax.set_yticklabels(yticks)
+    
   plt.xlabel(xlabel)
   plt.ylabel(ylabel_right)
 
@@ -72,7 +74,8 @@ def bin_transactions(df,xcol,ycol,xedges,yedges,count_bins,cmap='gnuplot',ylog=T
 
   #ax.vlines(xedges,Y.min(),Y.max(),lw=1,color='w',zorder=2);
   
-  return fig,ax,ax1,Y.min(),Y.max() 
+#   return fig,ax,ax1,Y.min(),Y.max() 
+  return fig,ax,Y.min(),Y.max() 
 
 
 def plot_bn_offer(offer_rvc,num,den,alpha=0.05,xleg=1.1,**kwargs):
