@@ -14,7 +14,8 @@ The problem is simplified as in this simulated database there is only one produc
 - SQLalchemy
 - pandas, sklearn, seaborn
 
-Most important 
+Most important, please make sure to meet the following dependencies: 
+
 pandas:  0.24.2
 sklearn:  0.21.2
 statsmodels:  0.9.0
