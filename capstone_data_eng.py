@@ -221,6 +221,9 @@ def add_offers_df(combined, portfolio, debug=False):
     combined['received'] = np.invert(combined['offer_received'].isnull())
 
     combined['comp_not_viewed'] = ((-combined['viewed']) & combined['rewarded'])
+    # if an offer was viewed after being completed it also should not be rewarded
+    combined['comp_not_viewed'] = combined.offer_viewed > combined.offer_completed
+    
     combined['completed'] = combined['rewarded'] & (-combined['comp_not_viewed'])
 
     if debug:
@@ -354,7 +357,7 @@ def extract_transactions(combined, transcript, add_transactions=False, skip_over
     if skip_overlap:
         qry = '''
         SELECT  
-            trans.person, trans.time, trans.payments, trans.tr_id, piv.offer, idx  
+            trans.person, trans.time, trans.payments, trans.tr_id, piv.offer, idx , piv.offer_viewed
         FROM
             trans inner join  piv on 
             trans.person = piv.person and trans.time between offer_viewed and offer_end+1 
@@ -380,19 +383,34 @@ def extract_transactions(combined, transcript, add_transactions=False, skip_over
     print('transactions_during_offer.shape:', transactions_during_offer.shape)
 
     if skip_overlap:
+        print('skip_overlap: True')
+        
+        print(transactions_during_offer.columns)
+        
         # each transaction is attributed to the first offer received
-        transactions_during_offer.set_index('idx', inplace=True)
-        transactions_during_offer = transactions_during_offer.groupby(by='idx').first()
+        #transactions_during_offer.set_index('idx', inplace=True)
+        #transactions_during_offer = transactions_during_offer.groupby(by='idx').first()
+        transactions_during_offer = transactions_during_offer.drop_duplicates(subset=['idx'])
+        transactions_during_offer['overlaps'] = 0
+        
+        print(transactions_during_offer.columns)
+        
     else:
+        print('skip_overlap: False')
+        print(transactions_during_offer.columns)
+
         # fix the issue that some transactions are counted multiple times on the same offer
         transactions_during_offer = transactions_during_offer.drop_duplicates(
             subset=['person', 'time', 'payments', 'tr_id', 'offer'])
+        # however this does not resolve the issue that the same transactions may be assigned to two different offers.
 
         # each transaction is attributed to all the valid offers
         vc = transactions_during_offer['tr_id'].value_counts().rename('overlaps')
         transactions_during_offer = transactions_during_offer.merge(vc, left_on='tr_id', right_index=True)
         # overlaps = value_counts -1
         transactions_during_offer['overlaps'] -= 1
+        
+        print(transactions_during_offer.columns)
 
     if debug:
         print('combined.shape:', combined.shape)
@@ -607,7 +625,7 @@ def add_stats_by_person(combined, transactions_outside_offer, transactions_durin
 
 
 def add_purchases(combined, profile, transactions_outside_offer, tdo, assign_to='first', calc_net_offer_time=False,
-                  add_person_stats=True, debug=False):
+                  add_person_stats=True, debug=False,skip_overlap=False):
     """
     adds the purchase information (during and outside offers) to the main pivot table.
     the information of average spending during and outside of offers is calculated
@@ -622,15 +640,19 @@ def add_purchases(combined, profile, transactions_outside_offer, tdo, assign_to=
     :return:
     """
 
-    # deal with multiple offers
-    transactions_during_offer = assign_overlapping_purchases(tdo, assign_to=assign_to)
+    if skip_overlap==False:
+        # deal with multiple offers
+        print('assign_overlapping_purchases:')
+        transactions_during_offer = assign_overlapping_purchases(tdo, assign_to=assign_to)
 
-    # this should be done in a separate function
-    transactions_during_offer['payments_original'] = 1.0 * transactions_during_offer['payments']
-    if assign_to == 'ignore':
-        # a payment is received during multiple offers are received, the amount is split equally between the offers
-        transactions_during_offer['payments'] = transactions_during_offer['payments_original'] / (
-                transactions_during_offer['overlaps'] + 1.)
+        # this should be done in a separate function
+        transactions_during_offer['payments_original'] = 1.0 * transactions_during_offer['payments']
+        if assign_to == 'ignore':
+            # a payment is received during multiple offers are received, the amount is split equally between the offers
+            transactions_during_offer['payments'] = transactions_during_offer['payments_original'] / (
+                    transactions_during_offer['overlaps'] + 1.)
+    else:
+        transactions_during_offer=tdo
 
     t_spec_offer = transactions_during_offer.groupby(by=['person', 'offer', 'offer_viewed'])['payments'].agg(
         ['sum', 'count', 'max', 'min'])
@@ -669,16 +691,18 @@ def add_purchases(combined, profile, transactions_outside_offer, tdo, assign_to=
     return (combined_with_purchases)
 
 
-def create_pivot_table(portfolio, profile, transcript_offers, transcript_transactions, add_transactions=False,
+def create_pivot_table(portfolio, profile_all, offers_all, transactions_all, add_transactions=False,
                        skip_overlap=False,
                        skip_add_purchases=False, calc_net_offer_time=True, assign_to='first'):
     """
     creates the pivot table with all the derived information
+    # portfolio, profile_all,offers_all,  transactions_all
+
 
     :param portfolio:
-    :param profile:
-    :param transcript_offers:
-    :param transcript_transactions:
+    :param profile_all:
+    :param offers_all:
+    :param transactions_all:
     :param add_transactions:
     :param skip_overlap:
     :param skip_add_purchases:
@@ -687,17 +711,47 @@ def create_pivot_table(portfolio, profile, transcript_offers, transcript_transac
     :return:
     """
 
-    combined = create_person_offer_table(transcript_offers, transcript_transactions, portfolio)
+    combined = create_person_offer_table(offers_all, transactions_all, portfolio)
     combined = add_offers_df(combined, portfolio);
     combined, trans, transactions_during_offer, transactions_outside_offer = extract_transactions(combined,
-                                                                                                  transcript_transactions,
+                                                                                                  transactions_all,
                                                                                                   add_transactions=add_transactions,
                                                                                                   skip_overlap=skip_overlap);
     if not skip_add_purchases:
-        combined = add_purchases(combined, profile, transactions_outside_offer, transactions_during_offer,
-                                 calc_net_offer_time=calc_net_offer_time, assign_to=assign_to)
+        combined = add_purchases(combined, profile_all, transactions_outside_offer, transactions_during_offer,
+                                 calc_net_offer_time=calc_net_offer_time, assign_to=assign_to, skip_overlap=skip_overlap)
 
     return (combined, transactions_during_offer, transactions_outside_offer, trans)
+
+
+def basic_load_data_cv(  rename_offers=True, location='local'):
+    # for debugging
+
+    rename_offers_dict = {'0b1e1539f2cc45b7b9fa7c272da2e1d7': 'a',
+                          '2298d6c36e964ae4a3e7e9706d1fb8c2': 'b',
+                          '2906b810c7d4411798c6938adc9daaa5': 'c',
+                          '3f207df678b143eea3cee63160fa8bed': 'd',
+                          '4d5c57ea9a6940dd891ad53e9dbe8da0': 'e',
+                          '5a8bc65990b245e5a138643cd4eb9837': 'f',
+                          '9b98b8c7a33c4b65b9aebfe6a799e6d9': 'g',
+                          'ae264e3637204a6fb9bb56bc8210ddfd': 'h',
+                          'f19421c1d4aa40978ebb69ca19b0e20d': 'i',
+                          'fafdcd668e3743c1bb461111dcafc2a4': 'j'}
+
+
+    portfolio = load_portfolio(location=location)
+    offers_all, transactions_all = load_transcript(location=location)
+    profile_all = load_profile(location=location)
+
+    if rename_offers:
+        portfolio['offer'] = portfolio['offer'].replace(rename_offers_dict)
+        offers_all['offer'] = offers_all['offer'].replace(rename_offers_dict)
+        transactions_all['offer'] = transactions_all['offer'].replace(rename_offers_dict)
+
+    print(""" combined, transactions_during_offer, transactions_outside_offer, trans = create_pivot_table(portfolio, profile_all,offers_all,
+        transactions_all,add_transactions=False, skip_overlap=False, skip_add_purchases=False, calc_net_offer_time=False, assign_to='first') """)
+
+    return(portfolio,offers_all,profile_all ,transactions_all)
 
 
 def load_data_cv(person_split=None, rename_offers=False, time_split_min=None, time_split_max=None,
